@@ -13,6 +13,7 @@ struct TimerEle {
 TickTimer::TickTimer() {
     m_size = 0;
     m_tick = 0;
+    m_time = 0;
 
     memset(m_tv1, 0, sizeof(m_tv1));
     memset(m_tv2, 0, sizeof(m_tv2));
@@ -105,7 +106,7 @@ Void TickTimer::startTimer(Void* timer, Uint32 tick) {
     ++m_size;
 }
 
-void TickTimer::tick() {
+void TickTimer::tick(Uint32 cnt) {
     Int32 i1 = 0;
     Int32 i2 = 0;
     Int32 next = 0;
@@ -113,6 +114,9 @@ void TickTimer::tick() {
     TimerEle* ele = NULL;
     hlist_node* pos = NULL;
     hlist_node* n = NULL; 
+
+    ++m_tick;
+    m_time += cnt;
 
     INIT_HLIST_HEAD(&list);
     
@@ -130,8 +134,6 @@ void TickTimer::tick() {
             }
         }
     } 
-
-    ++m_tick;
 
     if (!hlist_empty(&m_tv1[i1])) {
         hlist_move(&m_tv1[i1], &list); 

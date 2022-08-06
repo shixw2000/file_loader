@@ -25,20 +25,29 @@ public:
     /* This function must be called after the end of usage before free */
     Void stop(); 
 
+    Int32 waitSize() const;
+    EvMsgBlkRange* getLastWait(); 
+    Int32 retransFrame(const EvMsgBlkRange* pBlk, TransBaseType* data);
+
     Void prepareSend(TransBaseType* data);
-    Int32 notifySend(TransBaseType* data);
-    Void purgeWaitList(Int32 ackBlk, TransBaseType* data); 
+    Void postSend(TransBaseType* data);
+    
+    Void purgeWaitList(const EvMsgTransDataAck* pRsp, TransBaseType* data); 
 
     Int32 parseRawFile(TransBaseType* data);
     Int32 parseMapFile(TransBaseType* data);
     Int32 parseFile(const Char path[], TransBaseType* data);
 
+    /* push a frame of range to send list */
+    Bool pushBlk(TransBaseType* data);
+
+    /* send block datas according send list */
+    Int32 sendBlk(TransBaseType* data);
+
 private:
-    Void pushBlk(TransBaseType* data);
     Int32 grow(TransBaseType* data); 
     Bool popBlk(TransBaseType* data);
     Bool fillBlk(TransBaseType* data);
-    Int32 sendBlk(TransBaseType* data);
 
 private:
     Engine* m_eng;

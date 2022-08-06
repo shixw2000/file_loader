@@ -16,7 +16,13 @@ static Int32 cmpRcvBlk(list_node* n1, list_node* n2) {
     } else if (p1->m_blk_end != p2->m_blk_end) {
         return p1->m_blk_end - p2->m_blk_end;
     } else {
-        return p1->m_time - p2->m_time;
+        if (p1->m_time < p2->m_time) {
+            return -1;
+        } else if (p1->m_time > p2->m_time) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 }
 
@@ -39,9 +45,24 @@ Int32 FileWriter::start() {
 }
 
 Void FileWriter::stop() {
+}
+
+Void FileWriter::prepareRecv(TransBaseType* data) {
+    m_blk_offset = data->m_blk_next;
+    m_blk_pos = 0; 
+}
+
+Void FileWriter::postRecv(TransBaseType* data) {
+    Int32 ret = 0;
     list_node* pos = NULL;
     list_node* n = NULL;
     EvMsgTransData* pBlk = NULL;
+
+    ret = writeData(data);
+    if (0 == ret) {
+        /* if has left, then write it all */
+        ret = writeFile(data); 
+    }
 
     /* clear unused data */
     list_for_each_safe(pos, n, &m_list) {
@@ -53,11 +74,13 @@ Void FileWriter::stop() {
 
     MsgCenter::freeMsg(m_curr_blk);
     m_curr_blk = NULL;
-}
 
-Void FileWriter::prepareRecv(TransBaseType* data) {
-    m_blk_offset = data->m_blk_next;
-    m_blk_pos = 0; 
+    m_blk_offset = 0;
+    m_blk_pos = 0;
+
+    closeTransData(data);
+
+    return;
 }
 
 Int32 FileWriter::writeFile(TransBaseType* data) {
@@ -172,6 +195,10 @@ Void FileWriter::moveBlk(TransBaseType* data) {
 Int32 FileWriter::notifyRecv(EvMsgTransData* pReq, TransBaseType* data) {
     Int32 ret = 0;
     EvMsgTransDataAck* pRsp = NULL;
+    Int32 beg = pReq->m_blk_beg;
+    Int32 end = pReq->m_blk_end;
+    Int32 size = pReq->m_buf_size;
+    Uint32 time = pReq->m_time;
     
     pushBlk(pReq, data);
     ret = writeData(data);
@@ -179,11 +206,13 @@ Int32 FileWriter::notifyRecv(EvMsgTransData* pReq, TransBaseType* data) {
         return ret;
     }
 
-    pRsp = MsgCenter::creatMsg<EvMsgTransDataAck>(CMD_TRANS_DATA_BLK_ACK);
-
-    pRsp->m_time = pReq->m_time;
+    pRsp = MsgCenter::creatMsg<EvMsgTransDataAck>(CMD_TRANS_DATA_BLK_ACK); 
     pRsp->m_blk_next = data->m_blk_next_ack;
+    pRsp->m_time = time;
 
+    LOG_INFO("recv_blk| beg=%d| end=%d| size=%d| time=%u|",
+        beg, end, size, time);
+        
     ret = m_eng->transPkg(pRsp);
     if (0 != ret) {
         return ret;
@@ -195,22 +224,18 @@ Int32 FileWriter::notifyRecv(EvMsgTransData* pReq, TransBaseType* data) {
 Int32 FileWriter::dealBlkFinish(TransBaseType* data) {
     Int32 ret = 0;
     
-    if (data->m_blk_end == data->m_blk_next_ack) {
-        ret = writeData(data); 
+    ret = writeData(data); 
+    if (0 != ret) {
+        return ret;
+    }
+
+    if (endOfFile(data)) {
+        ret = setFinishFlag(data);
         if (0 != ret) {
             return ret;
         }
 
-        if (endOfFile(data)) {
-            ret = setFinishFlag(data);
-            if (0 != ret) {
-                return ret;
-            }
-
-            return 0;
-        } else {
-            return -1;
-        }
+        return 0;
     } else {
         return -1;
     }
@@ -297,9 +322,9 @@ Bool FileWriter::popBlk(TransBaseType*) {
     } else {
         return TRUE;
     }
-}
+} 
 
-Int32 FileWriter::writeFileMap(TransBaseType* data) {
+Int32 FileWriter::writeFileMap(TransBaseType* data) { 
     Int32 ret = 0;
     Int32 fd = -1;
     Int32 flag = FILE_FLAG_RD_WR;
@@ -309,7 +334,7 @@ Int32 FileWriter::writeFileMap(TransBaseType* data) {
 
     do {        
         /* map file */
-        snprintf(szMapPath, sizeof(szMapPath), "%s/%s.map", 
+        snprintf(szMapPath, sizeof(szMapPath), "%.128s/%.100s.map", 
             data->m_file_path, data->m_file_id);
         fd = FileTool::openFile(szMapPath, flag);
         if (0 > fd) {
@@ -338,7 +363,7 @@ Int32 FileWriter::writeFileMap(TransBaseType* data) {
         } 
 
         /* prepare data file */
-        snprintf(szDataPath, sizeof(szDataPath), "%s/%s",
+        snprintf(szDataPath, sizeof(szDataPath), "%.128s/%.100s",
             data->m_file_path, data->m_file_id);
             
         fd = FileTool::openFile(szDataPath, flag);
@@ -390,7 +415,7 @@ Int32 FileWriter::creatFileMap(TransBaseType* data) {
         
         buildMapHeader(data, &ohd);
         
-        snprintf(szMapPath, sizeof(szMapPath), "%s/%s.map",
+        snprintf(szMapPath, sizeof(szMapPath), "%.128s/%.100s.map",
             data->m_file_path, data->m_file_id);
         
         fd = FileTool::creatFile(szMapPath);
@@ -407,7 +432,7 @@ Int32 FileWriter::creatFileMap(TransBaseType* data) {
             break;
         }
 
-        snprintf(szDataPath, sizeof(szDataPath), "%s/%s",
+        snprintf(szDataPath, sizeof(szDataPath), "%.128s/%.100s",
             data->m_file_path, data->m_file_id);
         
         fd = FileTool::creatFile(szDataPath);
@@ -441,7 +466,7 @@ Int32 FileWriter::prepareFileMap(TransBaseType* data) {
     Int32 ret = 0;
     Char szPath[MAX_FILEPATH_SIZE] = {0};
 
-    snprintf(szPath, sizeof(szPath), "%s/%s.map", 
+    snprintf(szPath, sizeof(szPath), "%.128s/%.100s.map", 
         data->m_file_path, data->m_file_id); 
     
     ret = FileTool::existsFile(szPath);

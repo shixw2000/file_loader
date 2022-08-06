@@ -14,13 +14,11 @@ typedef struct {
     
     Int32 m_conf_send_speed;
     Int32 m_conf_recv_speed; 
-    Int32 m_upload_thr_max;
-    Int32 m_download_thr_max;
+    Int32 m_send_thr_max;
+    Int32 m_recv_thr_max;
 
-    Int32 m_upload_thr_cnt;
-    Int32 m_download_thr_cnt;
-    Int32 m_max_send_speed;
-    Int32 m_max_recv_speed;
+    Int32 m_send_thr_cnt;
+    Int32 m_recv_thr_cnt;
 } TaskConfType;
 
 enum {
@@ -54,22 +52,26 @@ typedef struct {
     Int32 m_blk_next;
     Int32 m_blk_next_ack;
     Int32 m_blk_beg;
-    Int32 m_blk_end;
+    Int32 m_blk_end; 
     
-    Int32 m_max_speed;
-    Int32 m_last_error;
-    Int32 m_frame_size;
-    Int32 m_completed;
+    Int32 m_last_error; 
+    Int32 m_completed; 
 
-    Int32 m_upload_download;
-    Int32 m_send_recv;
+    Int32 m_frame_size;
+    Int32 m_wnd_size;
+
+    Int32 m_max_speed;
+    Int32 m_quarter_speed;
+    Int32 m_progress;
+    Int32 m_realtime_ratio;
+    
+    Int32 m_dup_ack_cnt;
     
     Int32 m_file_fd[ENUM_FILE_BUTT];
 
     Char m_file_path[MAX_FILEPATH_SIZE];
     Char m_file_name[MAX_FILENAME_SIZE];
     Char m_file_id[MAX_FILEID_SIZE];
-    Char m_task_id[MAX_TASKID_SIZE];
 } TransBaseType;
 
 
@@ -98,7 +100,11 @@ Void resetTransData(TransBaseType* data);
 Void closeTransData(TransBaseType* data);
 void buildMapHeader(const TransBaseType* data, FileMapHeader* info);
 Void buildFileID(const Char task_id[], TransBaseType* data);
+Uint32 randTick();
 
+Uint32 sys_random();
+Uint64 sys_clock();
+const Char* clockMs();
 
 #endif
 

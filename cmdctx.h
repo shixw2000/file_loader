@@ -1,47 +1,44 @@
 #ifndef __CMDCTX_H__
 #define __CMDCTX_H__
-#include<map>
 #include"globaltype.h"
 #include"filectx.h"
 #include"queworker.h"
 #include"eventmsg.h"
 
 
+class I_Comm;
 class TickTimer;
-class Engine;
+class Engine; 
 
-class CmdCtx : public QueWorker {  
-    struct KeyCmp {
-        bool operator()(const Char* s1, const Char* s2);
-    };
-    
-    typedef std::map<const char*, Engine*, KeyCmp> typeTab;
-    typedef typeTab::iterator typeTabItr;    
-    
+class CmdCtx : protected QueWorker { 
 public:
     CmdCtx();
     virtual ~CmdCtx();
 
-    Int32 start();
-    Void stop();
+    void setParam(TickTimer* timer, I_Comm* comm);
 
-    Void setTimer(TickTimer* timer) {
-        m_timer = timer;
-    } 
+    Int32 start();
+    Void stop(); 
+
+    void setSpeed(Int32 sndSpeed, Int32 rcvSpeed);
+    
+    Void run(); 
+    
+    Int32 sendPkg(Void* msg);
+    Int32 transPkg(Void* msg);
+    Int32 recvPkg(Void* msg);
+    
+    Void addRunList(Engine*);
+    Void delRunList(Engine*); 
+  
+    Int32 getSendSpeed() const;
+    Int32 getRecvSpeed() const;
 
     Uint32 now() const;
-
-    inline void setTest(CmdCtx* test) {
-        m_test = test;
-    }
+    Uint32 monoTick() const; 
 
     Int32 uploadFile(EvMsgStartUpload* msg);
-    Int32 downloadFile(EvMsgStartDownload* msg);
-    
-    Int32 recvPkg(Void* msg);
-    Int32 sendPkg(Void* msg);
-
-    Int32 transPkg(Void* msg);
+    Int32 downloadFile(EvMsgStartDownload* msg);    
 
     inline TaskConfType* getConf() const { return m_data; }
 
@@ -51,25 +48,40 @@ public:
     Void resetTimer(Void* id, Uint32 tick);
     Void delTimer(Void* id); 
 
-    virtual Void addRunList(Engine*) = 0;
-    virtual Void delRunList(Engine*) = 0;
-
     Void test_01(); 
-    Void test_02();
-
-protected:
+    Void test_02(); 
+  
+private: 
+    Int32 setup(Void* msg);
+    Engine* creatEngine(Int32 cmd, const Char* id);
+    Int32 addEngine(Engine* eng);
+    Bool exists(const Char* id);
+    Bool delEngine(Engine* eng);
+    Engine* findEngine(const Char* id);
+    
+    Void updateSpeed(Bool isSend); 
+    
     virtual Void dealEvent(Void* msg); 
-    Int32 acceptUpload(Void* msg);
-    Int32 acceptDownload(Void* msg);
+
+    Void doReportResult(const Char* id);
 
     static Void activeTimer(Void* p1, Void* p2);
 
-private:
-    CmdCtx* m_test; 
+    Void doTasks();
+    Void freeAllEngine();
+
+private: 
     TickTimer* m_timer;
+    I_Comm* m_comm;
+    
     TaskConfType* m_data;
-    typeTab m_container;
+    order_list_head m_id_container;
+    list_head m_run_container;
 };
+
+
+extern Void* test_upload();
+extern Void* test_download();
 
 #endif
 

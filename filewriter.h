@@ -28,6 +28,7 @@ public:
     Void stop();
 
     Void prepareRecv(TransBaseType* data);
+    Void postRecv(TransBaseType* data);
 
     Int32 notifyRecv(EvMsgTransData* pReq, TransBaseType* data); 
     Int32 dealBlkFinish(TransBaseType* data); 

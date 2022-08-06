@@ -17,6 +17,7 @@ Int32 QueWorker::start() {
 
 Void QueWorker::stop() {
     m_running = FALSE;
+    consume();
 }
 
 Bool QueWorker::notify(Void* msg) {    
@@ -65,7 +66,7 @@ Bool QueWorker::doWork() {
 
         list_del(node, &m_queue);
         
-        msg = MsgCenter::from(node);
+        msg = MsgCenter::entry<Void>(node);
     }
 
     if (NULL != msg) { 

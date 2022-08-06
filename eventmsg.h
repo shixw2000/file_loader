@@ -10,34 +10,35 @@
 
 
 enum EnumCmdType {
-    CMD_START_FILE_UPLOAD,
+    CMD_START_FILE_UPLOAD = 0,
     CMD_START_FILE_DOWNLOAD,
     CMD_REQ_FILE_UPLOAD,
     CMD_REQ_FILE_DOWNLOAD,
     CMD_ACK_FILE_UPLOAD,
-    CMD_ACK_FILE_DOWNLOAD,
+    
+    CMD_ACK_FILE_DOWNLOAD = 5,
     CMD_EXCH_PARAM,
     CMD_ACK_PARAM,
-
     CMD_TRANS_DATA_BLK,
     CMD_TRANS_DATA_BLK_ACK,
-
-    CMD_DATA_BLK_RANGE,
-    CMD_SEND_BLK_FINISH,
-    CMD_RECV_BLK_FINISH, 
-
-    CMD_ALARM_TRANS_BLK,
-
-    CMD_START_BLK_TRANS,
-    CMD_STOP_BLK_TRANS,
-
-    CMD_TASK_DEAL_FAIL,
-
-    CMD_ALARM_ONE_TICK,
-    CMD_ALARM_TICK_TIMEOUT,
-    CMD_ALARM_TICK_ONE_FOURTH_SEC,
-
+    
+    CMD_SEND_BLK_FINISH = 10, 
+    CMD_TASK_COMPLETED, 
+    CMD_ALARM_WATCHDOG_TIMEOUT,
+    CMD_ALARM_TICK_QUARTER_SEC,
     CMD_FILE_TRANS_RESULT_REPORT,
+
+    CMD_ALARM_TRANS_BLK = 15,
+    CMD_DATA_BLK_RANGE,
+    CMD_ALARM_REPORT_TIMEOUT,
+    CMD_EVENT_REPORT_PARAM,
+    CMD_EVENT_REPORT_PARAM_ACK,
+    CMD_EVENT_REPORT_STATUS,
+
+    CMD_EVENT_SIGNAL,
+
+    
+    CMD_ERROR_PEER_FAIL,
     
     CMD_TYPE_NULL
 };
@@ -108,21 +109,21 @@ typedef struct {
     Int32 m_blk_beg;
     Int32 m_blk_end;
     Int32 m_buf_size;
-    Int32 m_time;
+    Uint32 m_time;
     Char m_buf[0];
 } EvMsgTransData;
 
 
 typedef struct {    
     Int32 m_blk_next;
-    Int32 m_time;
+    Uint32 m_time;
 } EvMsgTransDataAck;
 
 
 typedef struct {    
     Int32 m_blk_beg;
     Int32 m_blk_end;
-    Int32 m_time;
+    Uint32 m_time;
 } EvMsgBlkRange;
 
 typedef struct {
@@ -131,28 +132,17 @@ typedef struct {
 } EvMsgTransBlkFinish;
 
 typedef struct {
-    Int32 m_blk_beg;
-    Int32 m_blk_end;
-
     Char m_file_id[MAX_FILEID_SIZE];
-} EvMsgTransAckFinish;
+} EvMsgTaskCompleted;
 
-/****
-    * This is the data type of report.
-    * attention: 1 byte aligned for a event msg
-****/
 typedef struct {
-    Int64 m_file_size; 
-    Int32 m_result;
-    Int32 m_upload_download;
-    Int32 m_send_recv;
-    Char m_file_path[MAX_FILEPATH_SIZE];
-    Char m_file_name[MAX_FILENAME_SIZE];
-    Char m_file_id[MAX_FILEID_SIZE];
-    Char m_task_id[MAX_TASKID_SIZE];
-} ReportFileInfo;
+    Int32 m_max_speed;
+} EvMsgReportParam;
 
-typedef ReportFileInfo EvMsgResultReport;
+typedef struct {
+    Int32 m_progress;
+    Int32 m_realtime_ratio;
+} EvMsgReportStatus;
 
 #pragma pack(pop)
 

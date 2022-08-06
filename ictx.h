@@ -30,7 +30,10 @@ public:
 
     /* notice a fail state */
     virtual Void fail(Int32 errcode) = 0;
-    virtual Engine* engine() const = 0;
+    virtual Void reportResult() = 0;
+
+private:
+    Void transfer();
 
 private:
     Int32 m_type; // the current state type 

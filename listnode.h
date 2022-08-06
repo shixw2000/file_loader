@@ -6,6 +6,22 @@
     * a hash list named hlist_head, 
     * and a ordered list named order_list_head.
 ****/
+
+/****
+    * Some of the functions In this file is referenced
+    * from the file list.h of The Linux source project 
+    * as follows:
+*******************************************
+ * Simple doubly linked list implementation.
+ *
+ * Some of the internal functions ("__xxx") are useful when
+ * manipulating whole lists rather than single entries, as
+ * sometimes we already know the next/prev entries and we can
+ * generate better code by using them directly rather than
+ * using the generic single-entry routines.
+ ********************************************  
+****/
+
 #include"globaltype.h"
 
 

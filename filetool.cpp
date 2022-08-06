@@ -225,7 +225,7 @@ Int32 FileTool::readFile(Int32 fd, Void* buf, Int32 size, Int32* out) {
 
 /* return: 0: all ok,  1: busy, -1: end, -2: error */
 Int32 FileTool::preadFile(Int32 fd, Void* buf, Int32 size,
-    Uint64 offset, Int32* out) {
+    Int64 offset, Int32* out) {
     Int32 ret = 0;
     Int32 total = 0;
     Int32 rdlen = 0;
@@ -298,7 +298,7 @@ Int32 FileTool::writeFile(Int32 fd, const Void* buf, Int32 size, Int32* out) {
 
 /* return: 0: all ok,  1: busy,  -2: error */
 Int32 FileTool::pwriteFile(Int32 fd, const Void* buf, Int32 size,
-    Uint64 offset, Int32* out) {
+    Int64 offset, Int32* out) {
     Int32 ret = 0;
     Int32 total = 0;
     Int32 wrlen = 0;
@@ -335,7 +335,7 @@ Int32 FileTool::pwriteFile(Int32 fd, const Void* buf, Int32 size,
 /* return: 0: all ok,  1: busy, -1: end, -2: error */
 Int32 FileTool::preadvFile(Int32 fd, 
     const struct iovec *iov, int iovcnt,
-    Uint64 offset, Int32* out) {
+    Int64 offset, Int32* out) {
     Int32 ret = 0;
     Int32 size = 0;
     Int32 total = 0;
@@ -382,7 +382,7 @@ Int32 FileTool::preadvFile(Int32 fd,
 /* return: 0: all ok,  1: busy,  -2: error */
 Int32 FileTool::pwritevFile(Int32 fd, 
     const struct iovec *iov, int iovcnt,
-    Uint64 offset, Int32* out) {
+    Int64 offset, Int32* out) {
     Int32 ret = 0;
     Int32 size = 0;
     Int32 total = 0;

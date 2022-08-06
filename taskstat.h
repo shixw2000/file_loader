@@ -6,7 +6,6 @@
 #include"istate.h"
 
 
-class Engine;
 class I_Ctx;
 
 class TaskFailEnd : public I_State {
@@ -28,6 +27,7 @@ public:
     virtual Void process(Void*);
     virtual Void post();
 };
+
 
 #endif
 

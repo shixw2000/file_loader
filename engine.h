@@ -11,76 +11,115 @@
     * or from the acceptance of a server.
 ****/
 #include"globaltype.h"
+#include"listnode.h"
 #include"queworker.h"
 #include"eventmsg.h"
+#include"ihandler.h"
 #include"filectx.h"
 
 
-enum EnumEngStatus {
-    ENUM_ENG_IDLE = 0,
-    ENUM_ENG_RUNNING,
-};
-
+class Engine; 
 class CmdCtx;
 class I_Ctx;
 
+struct EngineItem {
+    list_node m_id_node;
+    list_node m_run_node;
+    Engine* m_eng;
+    Bool m_is_run;
+};
+
 class Engine : public QueWorker {
 public:
-    explicit Engine(CmdCtx* env);
+    explicit Engine(const Char* id);
     virtual ~Engine();
+
+    const Char* getID() const; 
+    Void setUpload(Bool is_upload);
+    Bool isUpload() const;
+    Void setSend(Bool is_send);
+    Bool isSend() const;
+    
+    Void setCtx(I_Ctx*); 
+    Void setEnv(CmdCtx* env); 
+
+    EngineItem* getItem() {
+        return &m_item;
+    }
 
     /* override the startup function for resource preparation */
     virtual Int32 start();
 
     /* must be called before free */
-    virtual Void stop();
-
-    Void setID(const Char id[]);
-    const Char* getID() const; 
-
-    Int32 status() const {
-        return m_status;
-    }
-
-    void setStatus(Int32 status) {
-        m_status = status;
-    }
+    virtual Void stop(); 
 
     virtual Bool notify(Void* msg);
 
     virtual Bool emerge(Void* msg);
 
     Uint32 now() const;
+    Uint32 monoTick() const;
 
     TransBaseType* getData() const; 
     
     Int32 sendPkg(Void* msg);
     Int32 transPkg(Void* msg);
 
-    Void* creatTimer(Int32 type); 
-    Void delTimer(Void* id);
+    Int32 getConfMss() const;
+    Int32 getConfWnd() const;
+    Int32 getConfSpeed() const;
+    
+    Void updateSpeed();
 
-    Void resetTimer(Void* id, Uint32 tick);
-    Void startTimer(Void* id, Uint32 tick);
-    Void stopTimer(Void* id); 
+    Void setSpeed(Int32 s);
+    Int32 speed() const;
 
-    bool operator<(const Engine* o) const;
-    bool operator==(const Engine* o) const;
+    Int32 quarterSpeed() const;
 
-    virtual Int32 getConfSpeed() const = 0; 
+    Void reportEnd();
+    
+    Void fillReport(ReportFileInfo* info);
 
+    Void fail2Peer(Int32 error);
+
+    Void startWatchdog(Uint32 tick);
+    Void stopWatchdog();
+    Void resetWatchdog(Uint32 tick);
+
+    Void startQuarterSec();
+    Void stopQuarterSec();
+
+    Void startReportTimer();
+    Void stopReportTimer();
+
+    Int32 calcMaxFrame() const;
+    Int32 calcMaxWnd() const;
+
+    Void parseReportParam(Void* msg);
+    Void sendReportParam();
+    
 protected:
+    Void sendReportParamAck();
+    
+    Int32 calcConfSpeed() const;
+    
     virtual Void dealEvent(Void* msg);
-    virtual I_Ctx* creatCtx() = 0;
-    virtual Void freeCtx(I_Ctx*) = 0;
 
 protected:
-    CmdCtx* m_env;
+    CmdCtx* m_env; 
     
 private: 
+    EngineItem m_item;
     I_Ctx* m_ctx;
     TransBaseType* m_data;
-    Int32 m_status;
+    Void* m_waitdog_timer;
+    Void* m_quarter_timer; 
+    Void* m_report_timer; 
+    Int32 m_conf_speed;
+    Bool m_update_speed;
+    Bool m_upload;
+    Bool m_send;
+    Char m_task_id[MAX_TASKID_SIZE];
 };
 
 #endif

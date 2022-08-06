@@ -1,4 +1,8 @@
+#include<stdlib.h>
 #include<string.h>
+#include<unistd.h>
+#include<sys/types.h>
+#include<time.h>
 #include"filectx.h" 
 #include"filetool.h"
 
@@ -9,17 +13,14 @@ void resetTaskConf(TaskConfType* data) {
     data->m_mss = DEF_MAX_FRAME_SIZE;
     data->m_max_cwnd = DEF_MAX_CWND_SIZE; 
     
-    data->m_conf_send_speed = DEF_TEST_SPEED_SIZE;
-    data->m_conf_recv_speed = DEF_TEST_SPEED_SIZE; 
+    data->m_conf_send_speed = 0;
+    data->m_conf_recv_speed = 0; 
 
-    data->m_upload_thr_max = DEF_MAX_THR_SIZE;
-    data->m_download_thr_max = DEF_MAX_THR_SIZE;
+    data->m_send_thr_max = DEF_MAX_THR_SIZE;
+    data->m_recv_thr_max = DEF_MAX_THR_SIZE;
 
-    data->m_upload_thr_cnt = 0;
-    data->m_download_thr_cnt = 0;
-
-    data->m_max_send_speed = data->m_conf_send_speed;
-    data->m_max_recv_speed = data->m_conf_recv_speed;
+    data->m_send_thr_cnt = 0;
+    data->m_recv_thr_cnt = 0;
 }
 
 Void resetTransData(TransBaseType* data) {
@@ -56,4 +57,37 @@ Void buildFileID(const Char task_id[], TransBaseType* data) {
     strncpy(data->m_file_id, task_id, MAX_FILEID_SIZE);
 }
 
+Uint32 randTick() {
+    Uint32 n = rand();
+
+    return n;
+}
+
+Uint32 sys_random() {
+    Uint32 n = 0;
+
+    n = getpid();
+    return n;
+}
+
+Uint64 sys_clock() {
+    Uint64 n = 0;
+    struct timespec tp;
+
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    n = tp.tv_sec * 1000000 + tp.tv_nsec/1000;
+    return n;
+}
+
+const Char* clockMs() {
+    static Char g_time_stamp[32] = {0};
+    struct timespec tp;
+
+    clock_gettime(CLOCK_MONOTONIC_COARSE, &tp);
+
+    snprintf(g_time_stamp, sizeof(g_time_stamp), "%ld.%ld", 
+        tp.tv_sec, tp.tv_nsec/1000000);
+    
+    return g_time_stamp;
+}
 

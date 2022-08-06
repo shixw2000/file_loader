@@ -18,16 +18,10 @@ public:
 
 class ReceiverEngine : public Engine {
 public:
-    explicit ReceiverEngine(CmdCtx* env);
+    ReceiverEngine(CmdCtx* env, const Char* id);
     ~ReceiverEngine(); 
-
-    virtual Int32 getConfSpeed() const;
     
-    virtual Void reportResult(const ReportFileInfo* info);
-
-protected:
-    virtual I_Ctx* creatCtx();
-    virtual Void freeCtx(I_Ctx*);
+    virtual Int32 start();
 };
 
 
@@ -41,18 +35,33 @@ public:
 
     virtual Void fail(Int32 errcode);
 
-    Engine* engine() const {
+    virtual Engine* engine() const {
         return m_eng;
     }
 
     FileWriter* writer() const {
         return m_writer;
     }
+
+    Void prepareRecv();
+    Void postRecv();
+
+    virtual Void reportResult();
+
+    Void addQuarterRatio(Int32 val);
+    Void stepQuarter();
+    Int32 averageRatio(); 
+    Int32 progress();
+
+    Void sendReportStatus();
     
 private:
     I_Factory* m_factory;
     FileWriter* m_writer;
     Engine* m_eng;
+    Int32 m_curr_speed;
+    Int32 m_pos;
+    Int32 m_quarter_ratio[DEF_QUARTER_RATIO_SIZE];
 };
 
 #endif

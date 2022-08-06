@@ -9,6 +9,7 @@
 ****/
 #include"globaltype.h"
 #include"listnode.h"
+#include"ihandler.h"
 
 
 #define TV_1_BITS 8
@@ -27,8 +28,12 @@ public:
     virtual Int32 start();
     virtual Void stop();
     
-    inline Uint32 now() const {
+    inline Uint32 monoTick() const {
         return m_tick;
+    }
+
+    inline Uint32 now() const {
+        return m_time;
     }
 
     Void* creatTimer(PFunc func, Void* p1, Void* p2);
@@ -41,8 +46,7 @@ public:
 
     void startTimer(Void* timer, Uint32 timeout);
 
-protected:
-    void tick();
+    void tick(Uint32 cnt);
 
 private:
     void doTimer(Void*);
@@ -50,6 +54,7 @@ private:
 private:
     Uint32 m_size;
     Uint32 m_tick;
+    Uint32 m_time;
     hlist_head m_tv1[TV_1_SIZE];
     hlist_head m_tv2[TV_2_SIZE];
 };

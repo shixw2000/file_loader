@@ -11,33 +11,42 @@
 class I_Ctx;
 class Engine; 
 class FileReader;
+class Sender;
 
-class SenderInit : public I_State {
+class SenderBase : public I_State {
 public:
-    SenderInit();
-    ~SenderInit();
-    
-    virtual Void prepare(I_Ctx*);
-    
-    virtual Void process(Void*);
+    SenderBase();
+    virtual ~SenderBase();
+
+protected:
+    virtual Void prepareEx() {}
+    virtual Void processEx(Void*) = 0;
+    virtual Void dealQuarterTimer() {}
+    virtual Void dealReportTimer() {}
 
 private:
-    Void parseUpload(const EvMsgStartUpload* info);
-    Void parseDownload(const EvMsgReqDownload* info);
-    
-private:
-    I_Ctx* m_ctx;
+    virtual Void prepare(I_Ctx*);
+    virtual Void process(Void*); 
+
+protected:
+    Sender* m_ctx;
     Engine* m_eng;
     FileReader* m_reader;
 };
 
-class UploadCliConn : public I_State {
-public:
-    UploadCliConn();
-    ~UploadCliConn();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+class SenderInit : public SenderBase {
+protected: 
+    virtual Void processEx(Void*);
+
+private:
+    Void parseUpload(const EvMsgStartUpload* info);
+    Void parseDownload(const EvMsgReqDownload* info);
+};
+
+class UploadCliConn : public SenderBase {
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 private:
@@ -47,22 +56,13 @@ private:
     EvMsgReqUpload* buildReq(); 
     EvMsgExchParam* buildExchParam(); 
     Void parseParamAck(const EvMsgAckParam* info);
-    
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileReader* m_reader;
-    Void* m_timerID;
 };
 
 
-class DownloadSrvAccept : public I_State {
-public:
-    DownloadSrvAccept();
-    ~DownloadSrvAccept();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+class DownloadSrvAccept : public SenderBase {
+protected: 
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 private:
@@ -70,56 +70,96 @@ private:
     
     EvMsgAckDownload* buildAck(); 
     Void parseParamAck(const EvMsgAckParam* info);
-    
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileReader* m_reader;
-    Void* m_timerID;
 };
 
-
-class TaskSetupSender : public I_State {
-public:
-    TaskSetupSender();
-    ~TaskSetupSender();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
-    virtual Void post();
-
+class TaskSetupSender : public SenderBase {
 protected:
-    Void dealBlkAck(EvMsgTransDataAck* pRsp);
-    Void prepareSend();
-    Void sendBlk(TransBaseType* data);
-
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileReader* m_reader;
-    Void* m_timerID;
+    virtual Void prepareEx();
+    virtual Void processEx(Void* msg);
 };
 
 
-class TaskSendFinish : public I_State {
-public:
-    TaskSendFinish();
-    ~TaskSendFinish();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+class TaskSendFinish : public SenderBase {
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 protected:
     Int32 notifyFinish();
-    Void dealFinish(EvMsgTransAckFinish* msg);
+    Void dealFinish(EvMsgTaskCompleted* msg); 
+};
+
+
+/* adjust frame size to appropriate value to adapt the speed ratio */
+class TaskSlowStartup : public SenderBase { 
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
+
+protected:
+    Void dealBlkAck(EvMsgTransDataAck* pRsp);
+    Bool correct(const EvMsgTransDataAck* pRsp, TransBaseType* data);
+    Void sendBlk();
+    Void dealQuarterTimer();
+    Void dealReportTimer();
+        
+private:
+    Int32 m_fast_counter;
+    Int32 m_slow_counter;
+};
+
+/* adjust congestion window size to appropriate value to adapt the speed ratio */
+class TaskAvoidCongest : public SenderBase { 
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
+
+protected:
+    Void dealQuarterTimer();
+    Void dealReportTimer();
+    Void dealBlkAck(EvMsgTransDataAck* pRsp);
+    Void sendBlk();
+    Void parseReportParam(Void* msg);
+    Bool chkAutoconf(TransBaseType* data);
 
 private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileReader* m_reader;
-    Void* m_timerID;
+    Int32 m_send_cnt;
 };
+
+
+class TaskRetrans : public SenderBase {
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
+
+protected:
+    Void dealQuarterTimer();
+    Void dealReportTimer();
+    Void dealBlkAck(EvMsgTransDataAck* pRsp);
+    Void dealRetrans();
+    Void retransmission();
+    Bool needRetrans();
+
+private:
+    Int32 m_retrans_cnt;
+    Bool m_allow;
+};
+
+
+/* adjust frame size to appropriate value to adapt the speed ratio */
+class TaskSendTest : public SenderBase { 
+protected:
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
+
+protected:
+    Void dealBlkAck(EvMsgTransDataAck* pRsp);
+    Void sendBlk();
+    Void dealQuarterTimer();
+    Void dealReportTimer();
+};
+
 
 #endif
 

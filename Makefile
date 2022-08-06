@@ -3,7 +3,7 @@ release=
 RM=rm -f
 
 COMILE_OPT=
-MACROS=
+MACROS=-D__TEST_LOST_PKG__N
 
 ifndef release
 CC=g++ -g -W -Wall  $(MACROS) $(COMILE_OPT)

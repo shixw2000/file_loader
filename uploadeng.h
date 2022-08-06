@@ -16,15 +16,10 @@ public:
 
 class SenderEngine : public Engine {
 public: 
-    explicit SenderEngine(CmdCtx* env);
+    SenderEngine(CmdCtx* env, const Char* id);
     ~SenderEngine();
 
-    virtual Int32 getConfSpeed() const;
-    virtual Void reportResult(const ReportFileInfo* info);
-
-protected:
-    virtual I_Ctx* creatCtx();
-    virtual Void freeCtx(I_Ctx*);
+    virtual Int32 start();
 };
 
 class Sender : public I_Ctx {
@@ -35,6 +30,9 @@ public:
     virtual Int32 start();
     virtual Void stop();
 
+    Void prepareSend();
+    Void postSend(); 
+
     virtual Void fail(Int32 errcode);
 
     virtual Engine* engine() const {
@@ -44,6 +42,10 @@ public:
     FileReader* reader() const {
         return m_reader;
     }
+
+    virtual Void reportResult(); 
+
+    Void parseReportStatus(Void* msg);
     
 private:
     I_Factory* m_factory;

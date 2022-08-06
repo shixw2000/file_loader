@@ -8,32 +8,42 @@
 class FileWriter;
 class I_Ctx;
 class Engine; 
+class Receiver;
 
-class ReceiverInit : public I_State {
+class ReceivBase : public I_State {
 public:
-    ReceiverInit();
-    ~ReceiverInit();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+    ReceivBase();
+    virtual ~ReceivBase();
+
+protected:
+    virtual Void prepareEx() {}
+    virtual Void processEx(Void*) = 0;
+    virtual Void dealQuarterTimer() {}
+    virtual Void dealReportTimer() {}
 
 private:
-    Void parseDownload(const EvMsgStartDownload* info);
-    Void parseUpload(const EvMsgReqUpload* info);
-    
-private:
-    I_Ctx* m_ctx;
+    virtual Void prepare(I_Ctx*);
+    virtual Void process(Void*); 
+
+protected:
+    Receiver* m_ctx;
     Engine* m_eng;
     FileWriter* m_writer;
 };
 
-class DownloadCliConn : public I_State {
-public:
-    DownloadCliConn();
-    ~DownloadCliConn();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+class ReceiverInit : public ReceivBase {
+protected: 
+    virtual Void processEx(Void*);
+
+private:
+    Void parseDownload(const EvMsgStartDownload* info);
+    Void parseUpload(const EvMsgReqUpload* info);
+};
+
+class DownloadCliConn : public ReceivBase { 
+protected: 
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 private:
@@ -42,21 +52,13 @@ private:
     EvMsgAckParam* buildAckParam();
     Void dealDownloadAck(EvMsgAckDownload* msg);
 
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileWriter* m_writer;
-    Void* m_timerID;
 };
 
 
-class UploadSrvAccept : public I_State {
-public:
-    UploadSrvAccept();
-    ~UploadSrvAccept();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void* msg);
+class UploadSrvAccept : public ReceivBase {
+protected: 
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 private:
@@ -64,52 +66,31 @@ private:
     Void dealExchParam(EvMsgExchParam* pReq);
     Void parseParam(const EvMsgExchParam* info);
     EvMsgAckParam* buildAckParam();
-
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileWriter* m_writer;
-    Void* m_timerID;
 };
 
 
-class TaskSetupReceiver : public I_State {
-public:
-    TaskSetupReceiver();
-    ~TaskSetupReceiver();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void* msg);
-    virtual Void post();
+class TaskSetupReceiver : public ReceivBase {
+protected: 
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
 
 private:
     Void recvBlkData(EvMsgTransData* msg);
     Void dealFinish(EvMsgTransBlkFinish* msg);
-
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileWriter* m_writer;
-    Void* m_timerID;
+    Void dealQuarterTimer();
+    Void dealReportTimer();
 };
 
-class TaskRecvFinish : public I_State {
-public:
-    TaskRecvFinish();
-    ~TaskRecvFinish();
-    
-    virtual Void prepare(I_Ctx*);
-    virtual Void process(Void*);
+class TaskRecvFinish : public ReceivBase {
+protected: 
+    virtual Void prepareEx();
+    virtual Void processEx(Void*);
     virtual Void post();
 
 private:
     Void notifyFinish();
-
-private:
-    I_Ctx* m_ctx;
-    Engine* m_eng;
-    FileWriter* m_writer;
-    Void* m_timerID;
+    Void dealFinish(EvMsgTaskCompleted* pRsp);
+    Void dealQuarterTimer();
 };
 
 

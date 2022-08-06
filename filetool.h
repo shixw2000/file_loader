@@ -32,21 +32,21 @@ public:
 
     /* return: 0: all ok,  1: busy, -1: end, -2: error */
     static Int32 preadFile(Int32 fd, Void* buf, Int32 size,
-        Uint64 offset, Int32* out = NULL);
+        Int64 offset, Int32* out = NULL);
 
     /* return: 0: all ok,  1: busy,  -2: error */
     static Int32 pwriteFile(Int32 fd, const Void* buf, Int32 size,
-        Uint64 offset, Int32* out = NULL);
+        Int64 offset, Int32* out = NULL);
 
     /* return: 0: all ok,  1: busy, -1: end, -2: error */
     static Int32 preadvFile(Int32 fd, 
         const struct iovec *iov, int iovcnt,
-        Uint64 offset, Int32* out = NULL);
+        Int64 offset, Int32* out = NULL);
 
     /* return: 0: all ok,  1: busy,  -2: error */
     static Int32 pwritevFile(Int32 fd, 
         const struct iovec *iov, int iovcnt,
-        Uint64 offset, Int32* out = NULL);
+        Int64 offset, Int32* out = NULL);
 
     static Int32 seekFile(int fd, Int64 offset);
 

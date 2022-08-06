@@ -18,5 +18,7 @@ typedef struct {} I_Event;
 
 #pragma pack(pop)
 
+static const Int32 DEF_MSG_HEADER_SIZE = sizeof(EvMsgHeader);
+
 #endif
 

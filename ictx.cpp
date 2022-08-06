@@ -23,18 +23,8 @@ Int32 I_Ctx::start() {
 
         if (NULL != m_state) {
             m_state->prepare(this); 
-            while (m_has_chg) {
-                m_state->post(); 
-                m_factory->release(m_state);
 
-                m_state = m_factory->creat(m_type); 
-                m_has_chg = FALSE; 
-
-                if (NULL != m_state) {
-                    m_state->prepare(this); 
-                }
-            }
-
+            transfer(); 
             return 0;
         } else {
             return -1;
@@ -73,21 +63,24 @@ void I_Ctx::procEvent(Void* msg) {
 
     if (NULL != m_state) {
         m_state->process(msg);
-        
-        while (m_has_chg) {
-            m_state->post(); 
-            m_factory->release(m_state);
 
-            m_state = m_factory->creat(m_type);
-            m_has_chg = FALSE;
-
-            if (NULL != m_state) {
-                m_state->prepare(this); 
-            }
-        }
+        transfer();
     } else {
         MsgCenter::freeMsg(msg);
     }
 }
 
+Void I_Ctx::transfer() {
+    while (m_has_chg) {
+        m_state->post(); 
+        m_factory->release(m_state);
+
+        m_state = m_factory->creat(m_type);
+        m_has_chg = FALSE;
+
+        if (NULL != m_state) {
+            m_state->prepare(this); 
+        }
+    }
+}
 

@@ -16,7 +16,8 @@ static Int32 cmpWaitBlk(list_node* n1, list_node* n2) {
     } else if (p1->m_blk_beg != p2->m_blk_beg) {
         return p1->m_blk_beg - p2->m_blk_beg;
     } else {
-        return p1->m_time - p2->m_time;
+        /* must not compare timer, for timer may be update by retrans */
+        return 0;
     }
 }
 
@@ -32,7 +33,13 @@ static Int32 cmpReadBlk(list_node* n1, list_node* n2) {
     } else if (p1->m_blk_end != p2->m_blk_end) {
         return p1->m_blk_end - p2->m_blk_end;
     } else {
-        return p1->m_time - p2->m_time;
+        if (p1->m_time < p2->m_time) {
+            return -1;
+        } else if (p1->m_time > p2->m_time) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 }
 
@@ -58,6 +65,77 @@ Int32 FileReader::start() {
 }
 
 Void FileReader::stop() {
+}
+
+Int32 FileReader::waitSize() const {
+    return LIST_SIZE(&m_list_wait) + LIST_SIZE(&m_list_read);
+}
+
+EvMsgBlkRange* FileReader::getLastWait() {
+    list_node* first = NULL;
+    EvMsgBlkRange* pReq = NULL;
+    
+    if (!order_list_empty(&m_list_wait)) { 
+        first = LIST_FIRST(&m_list_wait);
+        pReq = MsgCenter::entry<EvMsgBlkRange>(first); 
+
+        return pReq;
+    } else {
+        return NULL;
+    }
+}
+
+Int32 FileReader::retransFrame(const EvMsgBlkRange* pBlk, TransBaseType* data) {
+    Int64 offset = 0;
+    Int32 ret = 0;
+    Int32 size = 0;
+    Int32 beg = pBlk->m_blk_beg;
+    Int32 end = pBlk->m_blk_end;
+    Uint32 now = 0;
+    EvMsgTransData* pMsg = NULL;
+    
+    now = m_eng->now();
+    
+    size = FileTool::calcBlkSize(beg, end, data->m_file_size); 
+    pMsg = MsgCenter::creatMsg<EvMsgTransData>(CMD_TRANS_DATA_BLK, size);
+    pMsg->m_blk_beg = beg;
+    pMsg->m_blk_end = end;
+    pMsg->m_time = now;
+    pMsg->m_buf_size = size;
+
+    /* the whole block is inside cache */
+    if (beg >= m_blk_offset && end <= m_blk_offset + m_blk_size) {
+        offset = beg - m_blk_offset;
+        offset <<= DEF_FILE_UNIT_SHIFT_BITS;
+        memcpy(pMsg->m_buf, &m_buf[offset], size); 
+    } else {
+        /* here must be Int64 */
+        offset = beg;
+        offset <<= DEF_FILE_UNIT_SHIFT_BITS;
+        /* read from file */
+        ret = FileTool::preadFile(data->m_file_fd[ENUM_FILE_DATA],
+            pMsg->m_buf, size, offset);
+        if (0 != ret) {
+            MsgCenter::freeMsg(pMsg);
+            return -1;
+        }
+    }
+
+    ret = m_eng->transPkg(pMsg);
+    if (0 == ret) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+Void FileReader::prepareSend(TransBaseType* data) { 
+    m_blk_offset = data->m_blk_next;
+    m_blk_size = 0;
+    m_blk_pos = 0; 
+}
+
+Void FileReader::postSend(TransBaseType* data) { 
     list_node* pos = NULL;
     list_node* n = NULL;
     EvMsgBlkRange* pBlk = NULL;
@@ -80,26 +158,12 @@ Void FileReader::stop() {
 
     MsgCenter::freeMsg(m_curr_blk);
     m_curr_blk = NULL;
-}
 
-Void FileReader::prepareSend(TransBaseType* data) {
-    data->m_frame_size = 1;
-    
-    m_blk_offset = data->m_blk_next;
+    m_blk_offset = 0;
     m_blk_size = 0;
     m_blk_pos = 0; 
-}
 
-Int32 FileReader::notifySend(TransBaseType* data) {
-    Int32 ret = 0;
-
-    pushBlk(data); 
-    ret = sendBlk(data);
-    if (0 == ret) {
-        return 0;
-    } else {
-        return -1;
-    }
+    closeTransData(data);
 }
 
 Int32 FileReader::grow(TransBaseType* data) {
@@ -140,16 +204,24 @@ Int32 FileReader::grow(TransBaseType* data) {
 }
 
 /* clear the acked blk from the wait queue */
-Void FileReader::purgeWaitList(Int32 ackBlk, TransBaseType* data) {
+Void FileReader::purgeWaitList(const EvMsgTransDataAck* pRsp, 
+    TransBaseType* data) {
     list_node* pos = NULL;
     list_node* n = NULL;
     EvMsgBlkRange* pBlk = NULL; 
+    Int32 ackBlk = pRsp->m_blk_next;
 
     if (data->m_blk_next_ack < ackBlk) { 
         list_for_each_safe(pos, n, &m_list_wait) {
             pBlk = MsgCenter::entry<EvMsgBlkRange>(pos);
 
             if (pBlk->m_blk_end <= ackBlk) {
+                LOG_DEBUG("purge| beg=%d| end=%d| ack=%d| time=%u->%u|\n",
+                    pBlk->m_blk_beg,
+                    pBlk->m_blk_end,
+                    ackBlk,
+                    pRsp->m_time,
+                    m_eng->now());
 
                 /* remove acked blk */
                 order_list_del(pos, &m_list_wait);
@@ -168,7 +240,7 @@ Void FileReader::purgeWaitList(Int32 ackBlk, TransBaseType* data) {
     }
 }
 
-Void FileReader::pushBlk(TransBaseType* data) {
+Bool FileReader::pushBlk(TransBaseType* data) {    
     if (data->m_blk_next < data->m_blk_end) { 
         EvMsgBlkRange* pMsg = NULL; 
 
@@ -182,10 +254,13 @@ Void FileReader::pushBlk(TransBaseType* data) {
             pMsg->m_blk_end = data->m_blk_end;
         }
 
-        data->m_blk_next = pMsg->m_blk_end;
-        
+        data->m_blk_next = pMsg->m_blk_end; 
         MsgCenter::add(pMsg, &m_list_read); 
-    } 
+
+        return TRUE;
+    } else {
+        return FALSE;
+    }
 }
 
 Bool FileReader::popBlk(TransBaseType* data) {
@@ -224,6 +299,7 @@ Bool FileReader::popBlk(TransBaseType* data) {
                 CMD_TRANS_DATA_BLK, size);
             m_curr_blk->m_blk_beg = pReq->m_blk_beg;
             m_curr_blk->m_blk_end = pReq->m_blk_end;
+            m_curr_blk->m_time = pReq->m_time;
             m_curr_blk->m_buf_size = size;
 
             /* wait for ack later */
@@ -283,6 +359,14 @@ Int32 FileReader::sendBlk(TransBaseType* data) {
 
         bOk = fillBlk(data);
         if (bOk) {
+            Int32 beg = m_curr_blk->m_blk_beg;
+            Int32 end = m_curr_blk->m_blk_end;
+            Int32 size = m_curr_blk->m_buf_size;
+            Uint32 time = m_curr_blk->m_time;
+            
+            LOG_INFO("send_blk| beg=%d| end=%d| size=%d| time=%u|",
+                beg, end, size, time);
+                    
             /* fulfill a blk, then send it */
             ret = m_eng->transPkg(m_curr_blk);
             m_curr_blk = NULL;
@@ -306,7 +390,7 @@ Int32 FileReader::parseRawFile(TransBaseType* data) {
     Int32 ret = 0;
     Char szPath[MAX_FILEPATH_SIZE] = {0};
  
-    snprintf(szPath, sizeof(szPath), "%s/%s", 
+    snprintf(szPath, sizeof(szPath), "%.128s/%.100s", 
         data->m_file_path, data->m_file_name);
 
     do {
@@ -375,7 +459,7 @@ Int32 FileReader::parseMapFile(TransBaseType* data) {
 
     do {
         /* read map file */
-        snprintf(szMapPath, sizeof(szMapPath), "%s/%s.map", 
+        snprintf(szMapPath, sizeof(szMapPath), "%.128s/%.100s.map", 
             data->m_file_path, data->m_file_id);
         fd = FileTool::openFile(szMapPath, flag);
         if (0 > fd) {
@@ -402,7 +486,7 @@ Int32 FileReader::parseMapFile(TransBaseType* data) {
         data->m_blk_cnt = ohd.m_blk_cnt;
         strncpy(data->m_file_name, ohd.m_file_name, MAX_FILENAME_SIZE);
 
-        snprintf(szDataPath, sizeof(szDataPath), "%s/%s",
+        snprintf(szDataPath, sizeof(szDataPath), "%.128s/%.100s",
             data->m_file_path, data->m_file_id);
 
         /* prepare data file to read */

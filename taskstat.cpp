@@ -1,11 +1,6 @@
-#include<string.h>
 #include"taskstat.h"
-#include"filetool.h"
 #include"msgcenter.h"
-#include"ievent.h"
-#include"filectx.h"
-#include"eventmsg.h"
-#include"engine.h"
+#include"ictx.h"
 
 
 TaskFailEnd::TaskFailEnd() {
@@ -14,8 +9,10 @@ TaskFailEnd::TaskFailEnd() {
 TaskFailEnd::~TaskFailEnd() {
 }
 
-Void TaskFailEnd::prepare(I_Ctx*) {    
+Void TaskFailEnd::prepare(I_Ctx* ctx) {        
     LOG_INFO("===========TaskFailEnd|==");
+
+    ctx->reportResult();
 }
 
 Void TaskFailEnd::process(Void* msg) {
@@ -27,15 +24,17 @@ Void TaskFailEnd::process(Void* msg) {
 Void TaskFailEnd::post() {
 }
 
-
 TaskSucessEnd::TaskSucessEnd() {
 }
 
 TaskSucessEnd::~TaskSucessEnd() {
 }
 
-Void TaskSucessEnd::prepare(I_Ctx*) {
+Void TaskSucessEnd::prepare(I_Ctx* ctx) {
+    
     LOG_INFO("===========TaskSucessEnd::prepare==");
+
+    ctx->reportResult();
 }
 
 Void TaskSucessEnd::process(Void* msg) {
@@ -45,5 +44,6 @@ Void TaskSucessEnd::process(Void* msg) {
 }
 
 Void TaskSucessEnd::post() {
-}
+} 
+
 
